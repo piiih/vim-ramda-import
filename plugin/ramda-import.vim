@@ -1,0 +1,2 @@
+echo 'huehueheu'
+"echo search('^$')
