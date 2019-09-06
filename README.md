@@ -4,7 +4,7 @@ This is a plugin to make easier to import ramda's functions while writing code.
 
 ## Usage
 
-It's really simple to use this plugin, just add a mapping to the function `ImportFunction`, like this:
+It's really simple to use this plugin, just add a mapping to the function `ImportFunction` to your `.vimrc`, like this:
 ```vim
 nnoremap <C-i> :call ImportFunction()<CR>
 ```
