@@ -2,6 +2,13 @@
 
 This is a plugin to make easier to import ramda's functions while writing code.
 
+## Install
+
+### Plug
+```vim
+Plug 'piiih/vim-ramda-import'
+```
+
 ## Usage
 
 It's really simple to use this plugin, just add a mapping to the function `ImportFunction` to your `.vimrc`, like this:
