@@ -26,11 +26,62 @@ function! ImportFunction()
     return
   endif
 
+  let endImportLineNumber = search("\}.*from.*\'ramda\'$",'n')
+
+  let startImportLineNumber = s:FindStartLineNumber(endImportLineNumber, "import")
+
+  let importList = s:GetImportContent("import")
+
+  let functionAlreadyImported = index(importList, currentWord) >= 0
+
+  if functionAlreadyImported
+    echo "[Info] Function `" . currentWord . "` is already imported"
+    return
+  endif
+
+  let importExists = endImportLineNumber > 0
+
+  call add(importList, currentWord)
+
+  if !importExists
+    call append(0, "import { " . currentWord . " } from 'ramda'")
+    return
+  endif
+
+  let sortedList = sort(importList, "s:sortByAsc")
+
+  let completeImport = ''
+
+  if startImportLineNumber != endImportLineNumber || len(sortedList) > 3
+    let completeImport = s:BuildMultilineImport(sortedList, "import")
+
+    if startImportLineNumber == endImportLineNumber
+      for i in range(startImportLineNumber, startImportLineNumber + len(sortedList) - 1)
+        call append(i, '')
+      endfor
+    else
+      call append(startImportLineNumber, '')
+    endif
+  else
+    let completeImport = s:BuildOnelineImport(sortedList, "import")
+  endif
+
+  call setline(startImportLineNumber, completeImport)
+endfunction
+
+function! RequireFunction()
+  let currentWord = expand('<cword>')
+
+  if !s:isValidFunction(currentWord)
+    echoerr "[Error] Coundn't find a function named `" . currentWord . "`"
+    return
+  endif
+
   let endImportLineNumber = search("\}.*require\(\'ramda\'\)$",'n')
 
-  let startImportLineNumber = s:FindStartLineNumber(endImportLineNumber)
+  let startImportLineNumber = s:FindStartLineNumber(endImportLineNumber, "require")
 
-  let importList = s:GetImportContent()
+  let importList = s:GetImportContent("require")
 
   let functionAlreadyImported = index(importList, currentWord) >= 0
 
@@ -53,7 +104,7 @@ function! ImportFunction()
   let completeImport = ''
 
   if startImportLineNumber != endImportLineNumber || len(sortedList) > 3
-    let completeImport = s:BuildMultilineImport(sortedList)
+    let completeImport = s:BuildMultilineImport(sortedList, "require")
 
     if startImportLineNumber == endImportLineNumber
       for i in range(startImportLineNumber, startImportLineNumber + len(sortedList) - 1)
@@ -63,7 +114,7 @@ function! ImportFunction()
       call append(startImportLineNumber, '')
     endif
   else
-    let completeImport = s:BuildOnelineImport(sortedList)
+    let completeImport = s:BuildOnelineImport(sortedList, "require")
   endif
 
   call setline(startImportLineNumber, completeImport)
@@ -84,17 +135,32 @@ function! CheckImportedFunctions(importList)
   endfor
 endfunction
 
-function! s:BuildOnelineImport(importList)
+function! s:BuildOnelineImport(importList, importType)
   let sortedContent = join(a:importList, ", ")
 
-  return "const { " . sortedContent . " } = require('ramda')"
+  if a:importType == "import"
+    return "import { " . sortedContent . " } from 'ramda'"
+  else
+    return "const { " . sortedContent . " } = require('ramda')"
+  endif
 endfunction
 
-function! s:BuildMultilineImport(importList)
+function! s:BuildMultilineImport(importList, importType)
+  let startImportString = ""
+  let endImportString = ""
+
+  if a:importType == "import"
+    let startImportString = "import {"
+    let endImportString = "} from 'ramda'"
+  else
+    let startImportString = "const {"
+    let endImportString = "} = require('ramda')"
+  endif
+
   let breakLineList = map(a:importList, '"  " . v:val . ","')
 
-  call insert(breakLineList, "const {")
-  call add(breakLineList, "} = require('ramda')")
+  call insert(breakLineList, startImportString)
+  call add(breakLineList, endImportString)
 
   return breakLineList
 endfunction
@@ -103,9 +169,17 @@ function! s:isValidFunction(currentWord)
   return index(g:ramdaFunctionsList, a:currentWord) >= 0
 endfunction
 
-function! s:FindStartLineNumber(endLineNumber)
+function! s:FindStartLineNumber(endLineNumber, importType)
+  let importString = ""
+
+  if a:importType == "import"
+    let importString = 'import {'
+  else
+    let importString = 'const {'
+  endif
+
   let currentLine = a:endLineNumber
-  while match(getline(currentLine), 'const {') < 0
+  while match(getline(currentLine), importString) < 0
     if currentLine <= 0
       return 0
     endif
@@ -128,10 +202,16 @@ function! s:sortByAsc(a, b)
   return 0
 endfunction
 
-function! s:GetImportContent()
-  let endImportLineNumber = search("\}.*require\(\'ramda\'\)$",'n')
+function! s:GetImportContent(importType)
+  let endImportLineNumber = 0
 
-  let startImportLineNumber = s:FindStartLineNumber(endImportLineNumber)
+  if a:importType == "import"
+    let endImportLineNumber = search("\}.*from.*\'ramda\'$",'n')
+  else
+    let endImportLineNumber = search("\}.*require\(\'ramda\'\)$",'n')
+  endif
+
+  let startImportLineNumber = s:FindStartLineNumber(endImportLineNumber, a:importType)
 
   if endImportLineNumber > startImportLineNumber
     let importList = getline(startImportLineNumber+1, endImportLineNumber-1)
